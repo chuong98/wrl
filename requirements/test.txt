@@ -1,6 +1,0 @@
-coverage
-lmdb
-pytest
-PyTurboJPEG
-scipy
-tifffile

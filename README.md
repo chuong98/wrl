@@ -1,6 +1,8 @@
 # Install
 ```
 conda create -n chuong_RL python=3.8 -y
-conda install pytorch cudatoolkit=10.2 -c pytorch
+conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+pip install openmim 
+mim install mmcv-full
 pip install git+https://github.com/thu-ml/tianshou.git@master --upgrade
 ```
