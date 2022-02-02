@@ -1,3 +1,10 @@
+# Weekend Reinforcement Learning 
+
+About: This package provides a wraper of [Tianshou RL package](https://github.com/thu-ml/tianshou.git) by using the `mmcv.registry()` to convert a config file to Torch module/class/function. Using the register provides the flexibility and reduce the redundant code. 
++ For example, in the conventional way, you will need to write a parser to parse the arguments (to change some model parameters), and rewrite the whole `train.py` file for different methods/ algorithm. 
++ In constrast, with the registry, you only need to change the config files, and using a single `train.py` for all kind combination of env/algorithm policy. 
+
+
 # Install
 ```
 conda create -n chuong_RL python=3.8 -y

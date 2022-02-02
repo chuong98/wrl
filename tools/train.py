@@ -1,13 +1,32 @@
 import argparse
 import os.path as osp
 import torch
-from wrl.builder import build_policy
+import numpy as np
+import random
+import pprint
+from wrl.builder import build_buffer, build_policy
 from wrl.envs.venvs import build_venv
 from mmcv.utils import Config, DictAction, mkdir_or_exist, import_modules_from_strings
 import tianshou as ts
 
 from torch.utils.tensorboard import SummaryWriter
 
+def set_random_seed(seed, deterministic=False):
+    """Set random seed.
+    Args:
+        seed (int): Seed to be used.
+        deterministic (bool): Whether to set the deterministic option for
+            CUDNN backend, i.e., set `torch.backends.cudnn.deterministic`
+            to True and `torch.backends.cudnn.benchmark` to False.
+            Default: False.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
@@ -30,6 +49,10 @@ def parse_args():
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
         'is allowed.')
+    parser.add_argument(
+        '--render', type=float, 
+        help='the sleep time between rendering consecutive frames.')
+    parser.add_argument('--gpus', type=int, default=1, help='numer of gpus')
     args = parser.parse_args()
 
     return args
@@ -52,7 +75,7 @@ def parse_cfg(args):
         cfg.work_dir = args.work_dir
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
-        cfg.work_dir = osp.join('./work_dirs',
+        cfg.work_dir = osp.join('./work_dir',
                                 osp.splitext(osp.basename(args.config))[0])
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
@@ -61,45 +84,71 @@ def parse_cfg(args):
     mkdir_or_exist(osp.abspath(cfg.work_dir))
     # dump config
     cfg.dump(osp.join(cfg.work_dir, osp.basename(args.config)))
-    # init the logger before other steps
 
-    # # set random seeds
-    # if args.seed is not None:
-    #     logger.info(f'Set random seed to {args.seed}, '
-    #                 f'deterministic: {args.deterministic}')
-    #     set_random_seed(args.seed, deterministic=args.deterministic)
-    # cfg.seed = args.seed
+    # set random seeds
+    if args.seed is not None:
+        set_random_seed(args.seed, deterministic=args.deterministic)
+    cfg.seed = args.seed
+    
+    # CUDA devices
+    cfg.agent.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    cfg.agent.gpus = args.gpus
 
     return cfg
+
 
 def main():
     args = parse_args()
     cfg = parse_cfg(args)
-
+    
     # Build Gym Env 
-    train_env,test_env, env = build_venv(cfg.env)
+    train_envs,test_envs, env = build_venv(cfg.env)
+    train_envs.seed(args.seed)
+    test_envs.seed(args.seed)
+    print('Reward Threshold:', env.spec.reward_threshold)
 
-    # Build The Agent 
+    # Build The Agent (Policy)
     cfg.agent.state_shape = env.observation_space.shape or env.observation_space.n
     cfg.agent.action_shape= env.action_space.shape or env.action_space.n
     agent = build_policy(cfg.agent)
 
-    # Build Buffer 
-    train_collector = ts.data.Collector(agent, train_env, 
-                        ts.data.VectorReplayBuffer(cfg.train_cfg.buffer_size, len(train_env)), 
-                        exploration_noise=True)
-    test_collector = ts.data.Collector(agent, test_env, exploration_noise=True)  # because DQN uses epsilon-greedy method
+    # Build Collector
+    train_collector = ts.data.Collector(agent, train_envs, 
+                        buffer=build_buffer(cfg.train_buffer), 
+                        exploration_noise=cfg.exploration.eps_train>0)
+    test_collector = ts.data.Collector(agent, test_envs,
+                        exploration_noise=cfg.exploration.eps_test>0)  
 
     # Trainer
-    logger = ts.utils.TensorboardLogger(SummaryWriter('log/dqn'))
-    result = ts.trainer.offpolicy_trainer(
-        cfg.trainner,
+    logger = ts.utils.TensorboardLogger(SummaryWriter(f'{cfg.work_dir}/log'))
+    trainer_type = cfg.trainer.pop('type', None)
+    assert trainer_type is not None 
+    trainer = import_modules_from_strings(f'tianshou.trainer.{trainer_type}')
+    trainer_fn = getattr(trainer,f'{trainer_type}_trainer')
+    def save_fn(policy):
+        torch.save(policy.state_dict(), osp.join(cfg.work_dir, 'policy.pth'))
+
+    def stop_fn(mean_rewards):
+        return mean_rewards >= env.spec.reward_threshold
+
+    result = trainer_fn(
         agent, train_collector, test_collector, 
-        train_fn=lambda epoch, env_step: agent.set_eps(cfg.train_cfg.eps_train),
-        test_fn=lambda epoch, env_step: agent.set_eps(cfg.train_cfg.eps_test),
-        stop_fn=lambda mean_rewards: mean_rewards >= env.spec.reward_threshold,
-        logger=logger)
+        train_fn=lambda epoch, env_step: agent.set_eps(cfg.exploration.eps_train),
+        test_fn=lambda epoch, env_step: agent.set_eps(cfg.exploration.eps_test),
+        stop_fn=stop_fn,
+        save_fn =save_fn,
+        logger=logger,
+        **cfg.trainer)
     print(f'Finished training! Use {result["duration"]}')
+
+    # Let's watch its performance!
+    pprint.pprint(result)
+    agent.eval()
+    test_envs.seed(args.seed)
+    test_collector.reset()
+    result = test_collector.collect(n_episode=len(test_envs), render=args.render)
+    rews, lens = result["rews"], result["lens"]
+    print(f"Final reward: {rews.mean()}, length: {lens.mean()}")
 
 if __name__ == '__main__':
     main()    

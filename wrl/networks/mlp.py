@@ -1,8 +1,10 @@
 import torch
-from torch import nn 
+import numpy as np
+from torch import flatten, nn 
 from mmcv.cnn.bricks import build_activation_layer, build_norm_layer
 from mmcv.cnn.utils.weight_init import trunc_normal_init, constant_init
 from ..builder import NETWORKS
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 class FCModule(nn.Module):
     def __init__(self, in_channels, out_channels, 
@@ -20,7 +22,10 @@ class FCModule(nn.Module):
                             out_channels, 
                             bias=bias)
         if self.with_norm:
-            self.norm = build_norm_layer(norm_cfg, out_channels) 
+            self.norm_name, norm = build_norm_layer(norm_cfg, out_channels) 
+            self.add_module(self.norm_name, norm)
+        else:
+            self.norm_name=None
         if self.with_activation:
             act_cfg_ = act_cfg.copy()
             # nn.Tanh has no 'inplace' argument
@@ -38,6 +43,13 @@ class FCModule(nn.Module):
         if self.with_norm:
             constant_init(self.norm, 1, bias=0)
 
+    @property
+    def norm(self):
+        if self.norm_name:
+            return getattr(self, self.norm_name)
+        else:
+            return None
+
     def forward(self, x):
         x = self.fc(x)
         if self.with_norm:
@@ -48,18 +60,20 @@ class FCModule(nn.Module):
             x = self.dropout(x)
         return x 
 
-@NETWORKS.register_module()
-class MLPNet(nn.Module):
+
+class MLP(nn.Module):
     """MLP Network"""
     def __init__(self, 
-                in_channels, 
-                out_channels, 
-                hidden_layers=[50,30], 
-                norm_cfg=dict(type='LayerNorm'),
-                act_cfg=dict(type='GeLU'),
+                in_channels: int, 
+                out_channels: int, 
+                hidden_layers: Sequence[int], 
+                norm_cfg=dict(type='LN'),
+                act_cfg=dict(type='GELU'),
                 drop_rate=0.0,
+                device: Optional[Union[str, int, torch.device]] = None,
                 ):
         super().__init__()
+        self.device = device
         layers = []
         dp_rates=[x.item() for x in torch.linspace(0, drop_rate, len(hidden_layers))] 
         for i,channel in enumerate(hidden_layers):
@@ -71,6 +85,49 @@ class MLPNet(nn.Module):
         layers.append(nn.Linear(hidden_layers[-1],out_channels))
         self.layers = nn.Sequential(*layers)
 
-    def forward(self,x):
-        return self.layers(x)
+    def forward(
+        self,
+        obs: Union[np.ndarray, torch.Tensor],
+        ) -> torch.Tensor:
+        if self.device is not None:
+            obs = torch.as_tensor(
+                obs,
+                device=self.device,  # type: ignore
+                dtype=torch.float32,
+            )
+        return self.layers(obs.flatten(1))
 
+@NETWORKS.register_module()
+class MLPNet(nn.Module):
+    def __init__(self, 
+        in_channels: int,
+        out_channels: int,
+        hidden_layers: Sequence[int], 
+        norm_cfg=dict(type='LN'),
+        act_cfg=dict(type='GELU'),
+        drop_rate=0.0,
+        device: Optional[Union[str, int, torch.device]] = None,
+        softmax= False,
+        num_atoms= 1,
+        ):
+        super().__init__()
+        self.device = device
+        self.softmax = softmax
+        self.num_atoms = num_atoms
+        self.model = MLP(in_channels,out_channels*num_atoms,hidden_layers, 
+                            norm_cfg=norm_cfg,act_cfg=act_cfg,
+                            drop_rate=drop_rate, device=device)
+
+    def forward(
+        self,
+        obs: Union[np.ndarray, torch.Tensor],
+        state: Any = None,
+        info: Dict[str, Any] = {},
+    ) -> Tuple[torch.Tensor, Any]:
+        logits = self.model(obs)
+        bsz = logits.shape[0]
+        if self.num_atoms > 1:
+            logits = logits.view(bsz, -1, self.num_atoms)
+        if self.softmax:
+            logits = torch.softmax(logits, dim=-1)
+        return logits, state
