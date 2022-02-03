@@ -13,3 +13,7 @@ pip install openmim
 mim install mmcv-full
 pip install git+https://github.com/thu-ml/tianshou.git@master --upgrade
 ```
+
+# Tutorials:
+1. [Basic Concept and Usage](docs/basic_concepts.md)
+2. 
