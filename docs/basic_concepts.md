@@ -22,9 +22,9 @@ Our objective is to find the good `policy` so that the agent can get the highest
     )
     ```
 In the `main.py`, using the function to build environments:
-    ```python
+```python
     train_envs,test_envs, sample_env = build_venv(cfg.env)`
-    ```
+```
 where `sample_env` is returned for convinience to get some info about the environment, such as `state_space`, `action_space`, `reward_threshold`.
 
 2. **To creat an agent (policy)**, we specify in the `config.py`. For example,
