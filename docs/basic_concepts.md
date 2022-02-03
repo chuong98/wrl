@@ -102,11 +102,14 @@ The follow diagram illustrates how the components interact and what the function
 
 5. Finally, to train an Agent, you simply need:
 ```
+    CFG="configs/offpolicy/dqn/dqn_cartpole.py"
     python tools/train.py $CFG --seed $RANDOM
 ```
 ## Test and Visualize the Policy:
 + To Visualize the Log files, use vscode `F1 -> Python: Launch TensorBoard` then select the directory containing `log` folder.
 + To test a policy, use:
 ```
-    python tools/test.py $CFG $CKPT --seed $RANDOM --render 0.1 # If want to render video
+    CFG="configs/offpolicy/dqn/dqn_cartpole.py"
+    CKPT="path/to/ckpt.pth"
+    python tools/test.py $CFG $CKPT --seed $RANDOM --render 0.04 # If want to render video with 25 fps
 ```
