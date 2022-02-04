@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import random
 import pprint
-from wrl.builder import build_buffer, build_policy
+from wrl.builder import build_buffer, build_policy, build_trainer
 from wrl.envs.venvs import build_venv
 from mmcv.utils import Config, DictAction, mkdir_or_exist, import_modules_from_strings
 import tianshou as ts
@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
-        '--resume-from', help='the checkpoint file to resume from')
+        '--resume-epoch', help='the epoch to resume from')
     parser.add_argument('--seed', type=int, default=None, help='random seed')
     parser.add_argument(
         '--deterministic',
@@ -50,7 +50,7 @@ def parse_args():
         'Note that the quotation marks are necessary and that no white space '
         'is allowed.')
     parser.add_argument(
-        '--render_fps', type=float, 
+        '--render', type=float, 
         help='the sleep time between rendering consecutive frames. Eg. Set 1/24 for fps=24')
     parser.add_argument('--gpus', type=int, default=1, help='numer of gpus')
     args = parser.parse_args()
@@ -77,8 +77,8 @@ def parse_cfg(args):
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join('./work_dir',
                                 osp.splitext(osp.basename(args.config))[0])
-    if args.resume_from is not None:
-        cfg.resume_from = args.resume_from
+    if args.resume_epoch is not None:
+        cfg.resume_epoch = args.resume_epoch
 
     # create work_dir
     mkdir_or_exist(osp.abspath(cfg.work_dir))
@@ -114,31 +114,31 @@ def main():
 
     # Build Collector
     train_collector = ts.data.Collector(agent, train_envs, 
-                        buffer=build_buffer(cfg.train_buffer), 
-                        exploration_noise=cfg.exploration.eps_train>0)
+                        buffer=build_buffer(cfg.collector.train_buffer), 
+                        exploration_noise=cfg.collector.exploration_noise.train)
     test_collector = ts.data.Collector(agent, test_envs,
-                        exploration_noise=cfg.exploration.eps_test>0)  
+                        exploration_noise=cfg.collector.exploration_noise.test)  
+
+    # We may need to collect random data before training
+    precollected_steps = cfg.collector.get('precollected_steps', 0)
+    if precollected_steps>0:
+        train_collector.collect(n_steps=precollected_steps)
 
     # Trainer
     logger = ts.utils.TensorboardLogger(SummaryWriter(f'{cfg.work_dir}/log'))
-    trainer_type = cfg.trainer.pop('type', None)
-    assert trainer_type is not None 
-    trainer = import_modules_from_strings(f'tianshou.trainer.{trainer_type}')
-    trainer_fn = getattr(trainer,f'{trainer_type}_trainer')
-    def save_fn(policy):
-        torch.save(policy.state_dict(), osp.join(cfg.work_dir, 'policy.pth'))
+    trainer = build_trainer(
+        cfg.trainer,
+        default_args=dict(
+            policy=agent, 
+            train_collector=train_collector, 
+            test_collector=test_collector, 
+            logger=logger,
+            reward_threshold = env.spec.reward_threshold,
+            work_dir = cfg.work_dir,
+            resume_epoch = cfg.resume_epoch,)
+    )
 
-    def stop_fn(mean_rewards):
-        return mean_rewards >= env.spec.reward_threshold
-
-    result = trainer_fn(
-        agent, train_collector, test_collector, 
-        train_fn=lambda epoch, env_step: agent.set_eps(cfg.exploration.eps_train),
-        test_fn=lambda epoch, env_step: agent.set_eps(cfg.exploration.eps_test),
-        stop_fn=stop_fn,
-        save_fn =save_fn,
-        logger=logger,
-        **cfg.trainer)
+    result = trainer.train()
     print(f'Finished training! Use {result["duration"]}')
 
     # Let's watch its performance!
