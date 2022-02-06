@@ -50,5 +50,10 @@ Model-Free methods can divided into two-main approaches:
       + At the end of episode, compute the return $R(\tau)$, and the loss value $J(\pi)$. Update the policy by SGD.
             $$\theta \leftarrow \theta + \nappa J(\pi)$$
   + Off-Policy: We learn the Action Value function $Q_\theta(s,a)$, and indirectly select the optimal action that maximize $a^*(s) = \argmax_a Q^\theta(s,a)$. There is no direct policy in here, and the procedure generally includes:
-    + Initialize random Q-value function:  $\Q^\theta(s,a)$.    
+    + Initialize random Q-value function:  $\Q^\theta(s,a)$.  
+    + For each episode, do:
+      + Select an action that maximize $Q(s,a)$, but with probability $\epsilon$, select the action randomly. Add the data $(s_t,a_t,r_t,s_{t+1},done)$ to the data buffer.
+      + For every step, do sampling data from buffer, and update the $Q_\theta(s,a)$ network. 
+
+The
     
