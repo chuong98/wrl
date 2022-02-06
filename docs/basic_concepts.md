@@ -61,7 +61,7 @@ In the `config.py` file, specify the buffer by
             buffer_num=num_parallel_envs),
         exploration_noise=dict(train=True,test=True)
     )
-**```**
+```
 and in the main file:
 ```python    
     train_collector = ts.data.Collector(agent, train_envs, 
