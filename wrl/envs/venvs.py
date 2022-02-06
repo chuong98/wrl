@@ -1,6 +1,6 @@
 import gym 
 
-def build_venv(cfg):
+def build_venv(cfg, seed=0):
     env_name = cfg.type
     env = gym.make(env_name)
     if cfg.multi_process is not None:
@@ -13,4 +13,7 @@ def build_venv(cfg):
     else:
         train_env = gym.make(env_name)
         test_env = gym.make(env_name)
+
+    train_env.seed(seed)
+    test_env.seed(seed)
     return train_env, test_env, env

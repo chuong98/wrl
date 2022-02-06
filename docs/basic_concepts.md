@@ -23,7 +23,7 @@ Our objective is to find the good `policy` so that the agent can get the highest
 ```
 In the `main.py`, using the function to build environments:
 ```python
-    train_envs,test_envs, sample_env = build_venv(cfg.env)`
+    train_envs,test_envs, sample_env = build_venv(cfg.env, seed=args.seed)`
 ```
 where `sample_env` is returned for convinience to get some info about the environment, such as `state_space`, `action_space`, `reward_threshold`.
 
@@ -49,22 +49,26 @@ In the `main.py`, using the function to build the agent:
     cfg.agent.action_shape= env.action_space.shape or env.action_space.n
     agent = build_policy(cfg.agent)
 ```
-where the `state_shape` and `action_shape` are added depend on the environment `sample_env`.
+where the `state_shape` and `action_shape`, which depend on the environment `sample_env`, are required to specify the input and output dimension for the network.
 
 3. **To allow the `agent` interact with the `env` and collect the data** (`buffer`) to train the policy, Tianshou provides the class `collector`. 
 In the `config.py` file, specify the buffer by
 ```python
-    train_buffer=dict(
-        type='VectorReplayBuffer',
-        total_size=20000, 
-        buffer_num=num_parallel_envs,
+    collector=dict(
+        train_buffer=dict(
+            type='VectorReplayBuffer',
+            total_size=20000, 
+            buffer_num=num_parallel_envs),
+        exploration_noise=dict(train=True,test=True)
     )
-```
+**```**
 and in the main file:
 ```python    
-    train_collector = tianshou.data.Collector(agent, train_envs, 
-                            buffer=build_buffer(cfg.train_buffer))
-    test_collector = tianshou.data.Collector(agent, test_envs)
+    train_collector = ts.data.Collector(agent, train_envs, 
+                        buffer=build_buffer(cfg.collector.train_buffer), 
+                        exploration_noise=cfg.collector.exploration_noise.train)
+    test_collector = ts.data.Collector(agent, test_envs,
+                        exploration_noise=cfg.collector.exploration_noise.test)  
 ```
 The main function of `collector` is the [`collect` function](https://github.com/thu-ml/tianshou/blob/c25926dd8f5b6179f7f76486ee228982f48b4469/tianshou/data/collector.py#L144), which can be summarized in the following lines:
 ```python
@@ -75,6 +79,20 @@ The main function of `collector` is the [`collect` function](https://github.com/
     result = self.env.step(action_remap(act), ready_env_ids)            # apply action to environment
     obs_next, rew, done, info = result
     self.data.update(obs_next=obs_next, rew=rew, done=done, info=info)  # Update the data with new state/reward/done/info
+```
+At the end, the `collector` returns a `dict` of:
+```python
+    return {
+            "n/ep": episode_count,  # number of collected episodes.
+            "n/st": step_count,     # number of collected steps.
+            "rews": rews,           # array of reward over collected episodes.
+            "lens": lens,           # array of length over collected episodes.   
+            "idxs": idxs,           # array of episode start index in buffer over collected episodes.
+            "rew": rew_mean,        # mean of episodic rewards.
+            "len": len_mean,        # mean of episodic lengths.
+            "rew_std": rew_std, 
+            "len_std": len_std,
+        }
 ```
 
 4. Finally, we need the `trainer` function to perform the main loop, such as, control how the `collector` collects data, how `agent` updates its policy, when to stop/save ckpt, and logging data. In the `config.py` file,

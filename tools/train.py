@@ -102,9 +102,7 @@ def main():
     cfg = parse_cfg(args)
     
     # Build Gym Env 
-    train_envs,test_envs, env = build_venv(cfg.env)
-    train_envs.seed(args.seed)
-    test_envs.seed(args.seed)
+    train_envs,test_envs, env = build_venv(cfg.env, args.seed)
     print('Reward Threshold:', env.spec.reward_threshold)
 
     # Build The Agent (Policy)
@@ -119,7 +117,7 @@ def main():
     test_collector = ts.data.Collector(agent, test_envs,
                         exploration_noise=cfg.collector.exploration_noise.test)  
 
-    # We may need to collect random data before training
+    # We may need to collect some random data before training
     precollected_steps = cfg.collector.get('precollected_steps', 0)
     if precollected_steps>0:
         train_collector.collect(n_steps=precollected_steps)

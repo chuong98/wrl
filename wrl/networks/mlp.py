@@ -60,7 +60,6 @@ class FCModule(nn.Module):
             x = self.dropout(x)
         return x 
 
-
 class MLP(nn.Module):
     """MLP Network"""
     def __init__(self, 
