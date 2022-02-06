@@ -1,6 +1,6 @@
 # Introduction to Policy Optimization 
 
-Reference: https://spinningup.openai.com/en/latest/spinningup/rl_intro3.html
+Reference: https://spinningup.openai.**com**/en/latest/spinningup/rl_intro3.html
 
 ## I. Notations:
 ### 1. Policy:
@@ -8,7 +8,7 @@ A policy is a rule used by an agent to decide what actions to take:
 + It can be deterministic, denoted as: $a_t=\mu(s_t)$
 + It may be stochastic, often denoted as: $a_t \sim \pi(\cdot | s_t)$
 
-In Deep RL, a policy is parameterized by an Neural Network parameters $\theta, hence we write the policy as:
+In Deep RL, a policy is parameterized by an Neural Network parameters $\theta$, hence we write the policy as:
 + deterministic: $a_t=\mu_{\theta}(s_t)$
 + stochastic: $a_t \sim \pi_{\theta}(\cdot | s_t)$. 
   
