@@ -116,6 +116,7 @@ and in the `train.py`
 The follow diagram illustrates how the components interact and what the functions are called in the trainer.
 <img src="https://tianshou.readthedocs.io/en/master/_images/concepts_arch2.png"
      alt="Trainer Diagram"
+     width="800"
      style="float: left; margin-right: 10px;" />
 
 5. Finally, to train an Agent, you simply need:
