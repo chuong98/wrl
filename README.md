@@ -15,7 +15,9 @@ pip install git+https://github.com/thu-ml/tianshou.git@master --upgrade
 ```
 
 # Tutorials:
-1. [Basic Concept and Config Usage](docs/basic_concepts.md)
+1. [Config Usage and How to implement new Algorithm](docs/Config_Usage.md)
 2. [Problem Formulation and Notations](docs/ProblemFormulation_Notation.ipynb)
 3. Off-Policy algorithms:
+   1. [Deep Q-learning](docs/Q-Learning.ipynb)
+4. On-Policy algorithms:
    1. [Intro to Policy Gradient](docs/Vanila_Policy_Optimization.ipynb)
