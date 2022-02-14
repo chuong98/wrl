@@ -18,6 +18,8 @@ pip install git+https://github.com/thu-ml/tianshou.git@master --upgrade
 1. [Config Usage and How to implement new Algorithm](docs/Config_Usage.md)
 2. [Problem Formulation and Notations](docs/ProblemFormulation_Notation.ipynb)
 3. Off-Policy algorithms:
-   1. [Deep Q-learning](docs/Q-Learning.ipynb)
+   1. [Deep Q-learning (DQN)](docs/Q-Learning.ipynb)
+   2. [Dual DQN and Dueling DQN]
 4. On-Policy algorithms:
    1. [Intro to Policy Gradient](docs/Vanila_Policy_Optimization.ipynb)
+   2. [Trust Region Policy Optimization(TRPO) and Proximal Policy Optimization(PPO)](Proximal_Policy_Optimization.ipynb)
