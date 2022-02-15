@@ -117,3 +117,5 @@ venv.bak/
 # datasets and logs and checkpoints
 work_dir/
 src/
+log/
+*.code-workspace
