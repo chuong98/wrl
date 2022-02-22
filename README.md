@@ -19,13 +19,13 @@ pip install git+https://github.com/thu-ml/tianshou.git@master --upgrade
 2. [Problem Formulation and Notations](docs/ProblemFormulation_Notation.ipynb)
 3. Off-Policy algorithms:
    1. [Deep Q-learning (DQN -Nature 2015)](docs/Q-Learning.ipynb)
-   2. [Double-DQN (AAAI 2016), Priority Experience Replay (PER), and Dueling DQN (ICML 2016)](docs/DoubleDQN_DuelingDQN.ipynb)
+   2. [Double-DQN (AAAI 2016), Priority Experience Replay (PER) (ICLR 2016), and Dueling DQN (ICML 2016)](docs/DoubleDQN_DuelingDQN.ipynb)
    3. [Dealing with Sparse Reward]
       1. Hindsight Experience Replay (HER - NIPS 2017)
       2. First Return, Then Explore (Nature 2020)
 4. On-Policy algorithms:
    1. [Intro to Policy Gradient](docs/Vanila_Policy_Optimization.ipynb)
-   2. [Trust Region Policy Optimization(TRPO -ICML 2015) and Proximal Policy Optimization (PPO)](Proximal_Policy_Optimization.ipynb)
+   2. [Trust Region Policy Optimization(TRPO) (ICML 2015) and Proximal Policy Optimization (PPO)](Proximal_Policy_Optimization.ipynb)
 5. Mixing Q-learning and Policy Algorithm:
    1. Deep Deterministic Policy Gradient (DDPG - ICLR2016)
    2. Twin Delay DDPG (TD3 - ICML2018)
